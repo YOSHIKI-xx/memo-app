@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="メモ帳">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>メモ帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f0f;
+  --bg2: #1a1a1a;
+  --bg3: #242424;
+  --bg4: #2e2e2e;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f0;
+  --text2: #999;
+  --text3: #555;
+  --memo: #4ade80;
+  --memo-bg: rgba(74,222,128,0.1);
+  --memo-dim: rgba(74,222,128,0.2);
+  --task: #60a5fa;
+  --task-bg: rgba(96,165,250,0.1);
+  --task-dim: rgba(96,165,250,0.2);
+  --idea: #fbbf24;
+  --idea-bg: rgba(251,191,36,0.1);
+  --idea-dim: rgba(251,191,36,0.2);
+  --accent: #7c6aff;
+  --accent-bg: rgba(124,106,255,0.12);
+  --danger: #f87171;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overscroll-behavior: none; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── LAYOUT ── */
+#app { display: flex; flex-direction: column; height: 100dvh; max-width: 540px; margin: 0 auto; }
+
+/* ── HEADER ── */
+.header {
+  padding: calc(var(--safe-top) + 12px) 16px 0;
+  flex-shrink: 0;
+}
+.header-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.logo {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo svg { width: 16px; height: 16px; }
+.app-title { font-size: 17px; font-weight: 700; color: var(--text); flex: 1; letter-spacing: -0.3px; }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--bg3);
+  border: 0.5px solid var(--border2); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2); transition: background .15s;
+}
+.icon-btn:hover { background: var(--bg4); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* ── SEARCH ── */
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 10px;
+}
+.search-wrap svg { width: 14px; height: 14px; color: var(--text3); flex-shrink: 0; }
+.search-wrap input {
+  background: none; border: none; outline: none; color: var(--text);
+  font-size: 14px; font-family: inherit; flex: 1;
+}
+.search-wrap input::placeholder { color: var(--text3); }
+
+/* ── TABS ── */
+.tabs { display: flex; gap: 6px; margin-bottom: 2px; }
+.tab {
+  padding: 6px 14px; border-radius: 20px; border: 0.5px solid var(--border);
+  background: transparent; cursor: pointer; font-size: 12px; font-weight: 500;
+  color: var(--text2); transition: all .15s; font-family: inherit; white-space: nowrap;
+}
+.tab.active-all { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab.active-memo { background: var(--memo); color: #000; border-color: var(--memo); }
+.tab.active-task { background: var(--task); color: #000; border-color: var(--task); }
+.tab.active-idea { background: var(--idea); color: #000; border-color: var(--idea); }
+
+/* ── TAG CHIPS ── */
+.tag-scroll {
+  display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px 10px;
+  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+}
+.tag-scroll::-webkit-scrollbar { display: none; }
+.chip {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  cursor: pointer; white-space: nowrap; border: 0.5px solid transparent;
+  transition: all .12s; background: var(--bg3); color: var(--text2);
+}
+.chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.chip-colored { }
+
+/* ── LIST ── */
+.list-area { flex: 1; overflow-y: auto; padding: 12px 12px calc(var(--safe-bottom) + 80px); }
+.list-area::-webkit-scrollbar { width: 3px; }
+.list-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.day-group { margin-bottom: 4px; }
+.day-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: var(--text3); padding: 8px 4px 4px; text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+}
+
+.card {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  cursor: pointer; transition: border-color .15s, background .15s; position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.card.memo::before { background: var(--memo); }
+.card.task::before { background: var(--task); }
+.card.idea::before { background: var(--idea); }
+.card:hover { border-color: var(--border2); background: var(--bg3); }
+.card.done-card { opacity: .5; }
+
+.card-head { display: flex; align-items: flex-start; gap: 10px; }
+.card-check {
+  width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+  border: 1.5px solid var(--task); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; margin-top: 1px; transition: all .15s;
+}
+.card-check.checked { background: var(--task); border-color: var(--task); }
+.card-check svg { width: 10px; height: 10px; opacity: 0; }
+.card-check.checked svg { opacity: 1; }
+.card-title {
+  font-size: 14px; font-weight: 500; color: var(--text); flex: 1; line-height: 1.45;
+  word-break: break-all;
+}
+.card-title.done-text { text-decoration: line-through; color: var(--text3); }
+.card-del {
+  width: 24px; height: 24px; border-radius: 50%; background: transparent; border: none;
+  cursor: pointer; color: var(--text3); font-size: 14px; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; transition: color .12s, background .12s;
+}
+.card-del:hover { color: var(--danger); background: rgba(248,113,113,.1); }
+
+.card-body {
+  font-size: 12px; color: var(--text2); margin-top: 5px; line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  padding-left: 30px;
+}
+.card-body.no-check { padding-left: 0; }
+
+.sub-progress {
+  font-size: 11px; color: var(--text2); margin-top: 4px; padding-left: 30px;
+  font-family: 'DM Mono', monospace;
+}
+.progress-bar {
+  height: 3px; background: var(--bg4); border-radius: 2px; margin-top: 3px;
+  overflow: hidden; padding-left: 30px;
+}
+.progress-bar-inner { height: 100%; background: var(--task); border-radius: 2px; transition: width .3s; }
+
+.card-foot { display: flex; align-items: center; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.type-badge {
+  padding: 1px 7px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+.type-badge.memo { background: var(--memo-bg); color: var(--memo); }
+.type-badge.task { background: var(--task-bg); color: var(--task); }
+.type-badge.idea { background: var(--idea-bg); color: var(--idea); }
+.tag-badge {
+  padding: 1px 7px; border-radius: 6px; font-size: 10px;
+  background: var(--bg4); color: var(--text2);
+}
+.time-badge { font-size: 10px; color: var(--text3); margin-left: auto; font-family: 'DM Mono', monospace; }
+
+.empty-state {
+  text-align: center; padding: 4rem 1rem; color: var(--text3);
+}
+.empty-state svg { width: 40px; height: 40px; opacity: .3; margin-bottom: 12px; }
+.empty-state p { font-size: 13px; }
+
+/* ── FAB ── */
+.fab-wrap { position: absolute; bottom: calc(var(--safe-bottom) + 20px); right: 20px; }
+.fab {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--accent); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, background .15s;
+}
+.fab:hover { transform: scale(1.06); }
+.fab:active { transform: scale(.95); }
+.fab svg { width: 22px; height: 22px; }
+
+/* ── SHEET MODAL ── */
+.sheet-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 100; padding: 0; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.sheet-overlay.open { opacity: 1; pointer-events: all; }
+.sheet {
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 20px 20px 0 0; padding: 16px 16px calc(var(--safe-bottom) + 16px);
+  width: 100%; max-width: 540px; max-height: 92dvh; overflow-y: auto;
+  transform: translateY(100%); transition: transform .25s cubic-bezier(.32,0,.67,0);
+}
+.sheet-overlay.open .sheet { transform: translateY(0); transition: transform .25s cubic-bezier(.33,1,.68,1); }
+.handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 16px; }
+.sheet-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; letter-spacing: -.2px; }
+
+/* ── TYPE PICKER ── */
+.type-picker { display: flex; gap: 8px; margin-bottom: 14px; }
+.tp {
+  flex: 1; padding: 10px 6px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent; cursor: pointer;
+  text-align: center; transition: all .15s; font-family: inherit;
+}
+.tp svg { width: 18px; height: 18px; display: block; margin: 0 auto 4px; }
+.tp span { font-size: 11px; font-weight: 700; display: block; }
+.tp.sel-memo { border-color: var(--memo); background: var(--memo-bg); }
+.tp.sel-memo span { color: var(--memo); }
+.tp.sel-task { border-color: var(--task); background: var(--task-bg); }
+.tp.sel-task span { color: var(--task); }
+.tp.sel-idea { border-color: var(--idea); background: var(--idea-bg); }
+.tp.sel-idea span { color: var(--idea); }
+.tp:not([class*="sel-"]) svg { stroke: var(--text3) !important; }
+.tp:not([class*="sel-"]) span { color: var(--text3); }
+
+/* ── FORM ELEMENTS ── */
+.finp {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border2); background: var(--bg3);
+  color: var(--text); font-size: 14px; font-family: inherit; outline: none;
+  margin-bottom: 10px; transition: border-color .15s;
+}
+.finp:focus { border-color: var(--accent); }
+.finp::placeholder { color: var(--text3); }
+textarea.finp { resize: none; min-height: 80px; line-height: 1.55; }
+
+.form-label { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: .06em; margin-bottom: 6px; text-transform: uppercase; font-family: 'DM Mono', monospace; }
+
+/* ── SUBTASK INPUT ── */
+.sub-area { margin-bottom: 14px; display: none; }
+.sub-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.sub-row:last-child { border: none; }
+.mini-chk {
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid var(--task); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .12s;
+}
+.mini-chk.done { background: var(--task); border-color: var(--task); }
+.mini-chk svg { width: 8px; height: 8px; opacity: 0; }
+.mini-chk.done svg { opacity: 1; }
+.sub-input {
+  flex: 1; background: none; border: none; outline: none;
+  font-size: 13px; color: var(--text); font-family: inherit;
+}
+.sub-input::placeholder { color: var(--text3); }
+.sub-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 13px; }
+.add-sub-btn {
+  font-size: 12px; color: var(--accent); cursor: pointer;
+  background: none; border: none; font-family: inherit; padding: 4px 0; margin-top: 4px;
+}
+
+/* ── TAG PICKER ── */
+.tag-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.tp-tag {
+  padding: 4px 12px; border-radius: 20px; border: 0.5px solid var(--border2);
+  background: var(--bg3); cursor: pointer; font-size: 12px; color: var(--text2);
+  transition: all .12s; font-family: inherit;
+}
+.tp-tag.sel { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+/* ── SHEET BTNS ── */
+.sheet-btns { display: flex; gap: 8px; margin-top: 6px; }
+.btn-cancel {
+  flex: 1; padding: 12px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border2); background: transparent; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text2); font-family: inherit; transition: background .12s;
+}
+.btn-cancel:hover { background: var(--bg3); }
+.btn-save {
+  flex: 2; padding: 12px; border-radius: var(--radius-sm);
+  background: var(--accent); border: none; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: #fff; font-family: inherit; transition: opacity .12s;
+}
+.btn-save:hover { opacity: .88; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(var(--safe-bottom) + 90px); left: 50%;
+  transform: translateX(-50%) translateY(20px); background: var(--bg4);
+  border: 0.5px solid var(--border2); border-radius: 20px; padding: 8px 18px;
+  font-size: 12px; color: var(--text); opacity: 0; transition: all .2s; pointer-events: none;
+  white-space: nowrap; z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── DEDUP BADGE ── */
+.dedup-banner {
+  background: rgba(251,191,36,.08); border: 0.5px solid rgba(251,191,36,.25);
+  border-radius: var(--radius-sm); padding: 8px 12px; margin: 0 12px 8px;
+  display: flex; align-items: center; gap: 8px; display: none;
+}
+.dedup-banner svg { width: 14px; height: 14px; color: var(--idea); flex-shrink: 0; }
+.dedup-banner span { font-size: 11px; color: var(--idea); flex: 1; }
+.dedup-banner button {
+  font-size: 11px; color: var(--idea); background: none; border: none; cursor: pointer;
+  font-family: inherit; text-decoration: underline;
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  display: flex; gap: 12px; padding: 8px 16px 10px;
+  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+}
+.stat { text-align: center; flex: 1; }
+.stat-n { font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace; }
+.stat-l { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.n-memo { color: var(--memo); }
+.n-task { color: var(--task); }
+.n-idea { color: var(--idea); }
+.n-all { color: var(--accent); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+.card { animation: fadeIn .18s ease; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="#fff" stroke-width="1.4"/><line x1="5" y1="5.5" x2="11" y2="5.5" stroke="#fff" stroke-width="1.1"/><line x1="5" y1="8" x2="9" y2="8" stroke="#fff" stroke-width="1.1"/><line x1="5" y1="10.5" x2="10" y2="10.5" stroke="#fff" stroke-width="1.1"/></svg>
+      </div>
+      <span class="app-title">メモ帳</span>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="sortToggle()" title="並べ替え" id="sort-btn">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="10" y2="8"/><line x1="2" y1="12" x2="7" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10" y1="10" x2="13.5" y2="13.5"/></svg>
+      <input type="text" id="search" placeholder="検索..." oninput="render()" autocomplete="off">
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab active-all" onclick="setType('all',this)">すべて</button>
+      <button class="tab" onclick="setType('memo',this)">メモ</button>
+      <button class="tab" onclick="setType('task',this)">タスク</button>
+      <button class="tab" onclick="setType('idea',this)">アイデア</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats"></div>
+  <div id="dedup-banner" class="dedup-banner">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".8" fill="currentColor"/></svg>
+    <span id="dedup-msg"></span>
+    <button onclick="mergeAll()">統合する</button>
+  </div>
+  <div class="tag-scroll" id="tag-scroll"></div>
+  <div class="list-area" id="list"></div>
+
+  <div style="position:relative;height:0">
+    <div class="fab-wrap">
+      <button class="fab" onclick="openNew()">
+        <svg viewBox="0 0 22 22" fill="none"><line x1="11" y1="4" x2="11" y2="18" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><line x1="4" y1="11" x2="18" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheet Modal -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="handleOverlayClick(event)">
+  <div class="sheet" id="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" id="sheet-title">新規追加</div>
+    <div class="type-picker">
+      <button class="tp sel-memo" id="tp-memo" onclick="pickType('memo')">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="14" height="14" rx="3"/><line x1="5" y1="6" x2="13" y2="6"/><line x1="5" y1="9" x2="10" y2="9"/></svg>
+        <span>メモ</span>
+      </button>
+      <button class="tp" id="tp-task" onclick="pickType('task')">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="14" height="14" rx="3"/><path d="M5.5 9l2.5 2.5 4.5-5"/></svg>
+        <span>タスク</span>
+      </button>
+      <button class="tp" id="tp-idea" onclick="pickType('idea')">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="9" cy="8" r="4.5"/><line x1="9" y1="14" x2="9" y2="16"/><line x1="7" y1="15" x2="11" y2="15"/></svg>
+        <span>アイデア</span>
+      </button>
+    </div>
+
+    <div class="form-label">タイトル</div>
+    <input type="text" class="finp" id="f-title" placeholder="タイトルを入力..." autocomplete="off">
+
+    <div class="form-label">内容（任意）</div>
+    <textarea class="finp" id="f-body" placeholder="詳細を入力..."></textarea>
+
+    <div class="sub-area" id="sub-area">
+      <div class="form-label">チェックリスト</div>
+      <div id="subtasks"></div>
+      <button class="add-sub-btn" onclick="addSub()">＋ 項目を追加</button>
+    </div>
+
+    <div class="form-label">タグ</div>
+    <div class="tag-picker" id="tag-picker"></div>
+
+    <div class="sheet-btns">
+      <button class="btn-cancel" onclick="closeSheet()">キャンセル</button>
+      <button class="btn-save" onclick="save()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TAGS = ['仕事','アイデア','生活','学び','欲しいもの','英語','海外','音楽'];
+const STORAGE_KEY = 'memotool_v2';
+
+let items = [];
+let nextId = 1;
+let curType = 'all';
+let curTag = 'all';
+let sortMode = 'date'; // 'date' | 'type'
+let editId = null;
+let curNewType = 'memo';
+let selTags = [];
+let subList = [];
+
+/* ── STORAGE ── */
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      items = d.items || [];
+      nextId = d.nextId || (items.length ? Math.max(...items.map(i=>i.id)) + 1 : 1);
+    }
+  } catch(e) { items = []; nextId = 1; }
+  if (!items.length) seedData();
+}
+function save_storage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, nextId }));
+}
+
+function seedData() {
+  items = [
+    { id: nextId++, type: 'memo', title: '英会話サービス比較', body: 'DMM英会話・ネイティブキャンプ・Preplyを検討。月8,000〜15,000円の予算。', tags: ['学び','英語'], subs: [], done: false, ts: Date.now() - 3600000*2 },
+    { id: nextId++, type: 'task', title: 'オンライン英会話を申し込む', body: '', tags: ['学び'], subs: [{ t:'料金プランを確認', d:false }, { t:'無料体験に登録', d:false }, { t:'クレカ登録', d:false }], done: false, ts: Date.now() - 3600000*5 },
+    { id: nextId++, type: 'idea', title: 'ポルトガルでノマド生活', body: 'ノマドビザ取得→ポルトガル3ヶ月滞在→音楽シーンへ。マンション賃貸で家賃を工面できるか検討。', tags: ['アイデア','海外'], subs: [], done: false, ts: Date.now() - 3600000*24 },
+    { id: nextId++, type: 'task', title: '給与明細で貯蓄可能額を計算', body: '', tags: ['生活'], subs: [{ t:'固定費をリストアップ', d:true }, { t:'削減できる支出を探す', d:false }], done: false, ts: Date.now() - 3600000*26 },
+    { id: nextId++, type: 'memo', title: '気になるガジェット', body: 'AirPods Pro 第3世代、Kindle Paperwhite、薄型財布', tags: ['欲しいもの'], subs: [], done: false, ts: Date.now() - 3600000*48 },
+    { id: nextId++, type: 'idea', title: '音楽 × 英語コミュニティ', body: '英語で話せる音楽好きのSlack/Discordを作る。東京のジャムセッションに参加。', tags: ['アイデア','音楽','英語'], subs: [], done: false, ts: Date.now() - 3600000*72 },
+  ];
+  save_storage();
+}
+
+/* ── DEDUP ── */
+function normalize(s) {
+  return s.toLowerCase().replace(/[\s　。、.,\-_・]/g, '');
+}
+function similarity(a, b) {
+  const na = normalize(a), nb = normalize(b);
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.85;
+  let matches = 0;
+  const shorter = na.length < nb.length ? na : nb;
+  const longer  = na.length < nb.length ? nb : na;
+  for (let i = 0; i < shorter.length - 1; i++) {
+    if (longer.includes(shorter.slice(i, i+2))) matches++;
+  }
+  return matches / Math.max(shorter.length - 1, 1);
+}
+function findDuplicates() {
+  const groups = [];
+  const used = new Set();
+  for (let i = 0; i < items.length; i++) {
+    if (used.has(items[i].id)) continue;
+    const group = [items[i]];
+    for (let j = i+1; j < items.length; j++) {
+      if (used.has(items[j].id)) continue;
+      if (similarity(items[i].title, items[j].title) >= 0.75) {
+        group.push(items[j]);
+        used.add(items[j].id);
+      }
+    }
+    if (group.length > 1) {
+      groups.push(group);
+      used.add(items[i].id);
+    }
+  }
+  return groups;
+}
+function checkDuplicates() {
+  const dupes = findDuplicates();
+  const banner = document.getElementById('dedup-banner');
+  const msg = document.getElementById('dedup-msg');
+  if (dupes.length) {
+    banner.style.display = 'flex';
+    const total = dupes.reduce((s,g)=>s+g.length,0);
+    msg.textContent = `類似アイテムが ${total} 件あります。重複を統合しますか？`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+function mergeAll() {
+  const dupes = findDuplicates();
+  dupes.forEach(group => {
+    const keep = group[0];
+    const rest = group.slice(1);
+    const mergedBody = [keep.body, ...rest.map(r=>r.body)].filter(Boolean).join('\n---\n');
+    const mergedTags = [...new Set([...keep.tags, ...rest.flatMap(r=>r.tags)])];
+    const mergedSubs = [...keep.subs, ...rest.flatMap(r=>r.subs)];
+    keep.body = mergedBody;
+    keep.tags = mergedTags;
+    keep.subs = mergedSubs;
+    rest.forEach(r => { items = items.filter(i=>i.id!==r.id); });
+  });
+  save_storage();
+  render();
+  checkDuplicates();
+  showToast(`${dupes.length} 件の重複を統合しました`);
+}
+
+/* ── TITLE DEDUP CHECK on save ── */
+function checkNewDuplicate(title, excludeId) {
+  return items.filter(i => i.id !== excludeId && similarity(i.title, title) >= 0.75);
+}
+
+/* ── UI HELPERS ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function relTime(ts) {
+  const d = (Date.now() - ts) / 1000;
+  if (d < 60) return 'たった今';
+  if (d < 3600) return Math.floor(d/60) + 'm';
+  if (d < 86400) return Math.floor(d/3600) + 'h';
+  if (d < 86400*7) return Math.floor(d/86400) + 'd';
+  const dt = new Date(ts);
+  return (dt.getMonth()+1) + '/' + dt.getDate();
+}
+function dayLabel(ts) {
+  const d = new Date(ts), now = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return '今日';
+  if (diff === 1) return '昨日';
+  if (diff < 7) return diff + '日前';
+  return d.getMonth()+1 + '月' + d.getDate() + '日';
+}
+
+/* ── RENDER ── */
+function setType(t, el) {
+  curType = t;
+  document.querySelectorAll('.tab').forEach(b => b.className = 'tab');
+  el.className = 'tab active-' + t;
+  render();
+}
+function setTag(t) { curTag = t; render(); }
+function sortToggle() {
+  sortMode = sortMode === 'date' ? 'type' : 'date';
+  document.getElementById('sort-btn').style.color = sortMode === 'type' ? 'var(--accent)' : '';
+  showToast(sortMode === 'type' ? '種類でグループ化' : '日付順');
+  render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const allTags = [...new Set(items.flatMap(i=>i.tags))];
+
+  // stats
+  const sc = { all: items.length, memo: 0, task: 0, idea: 0 };
+  items.forEach(i => sc[i.type]++);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-n n-all">${sc.all}</div><div class="stat-l">合計</div></div>
+    <div class="stat"><div class="stat-n n-memo">${sc.memo}</div><div class="stat-l">メモ</div></div>
+    <div class="stat"><div class="stat-n n-task">${sc.task}</div><div class="stat-l">タスク</div></div>
+    <div class="stat"><div class="stat-n n-idea">${sc.idea}</div><div class="stat-l">アイデア</div></div>`;
+
+  // tag row
+  document.getElementById('tag-scroll').innerHTML =
+    `<span class="chip${curTag==='all'?' active':''}" onclick="setTag('all')">すべて</span>`
+    + allTags.map(t=>`<span class="chip${curTag===t?' active':''}" onclick="setTag('${t}')">${t}</span>`).join('');
+
+  let filtered = items.filter(it => {
+    if (curType !== 'all' && it.type !== curType) return false;
+    if (curTag !== 'all' && !it.tags.includes(curTag)) return false;
+    if (q && !it.title.toLowerCase().includes(q) && !(it.body||'').toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => b.ts - a.ts);
+
+  const list = document.getElementById('list');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="6" width="28" height="28" rx="6"/><line x1="13" y1="15" x2="27" y2="15"/><line x1="13" y1="20" x2="21" y2="20"/></svg>
+      <p>${q ? '「'+q+'」は見つかりませんでした' : 'アイテムがありません'}</p>
+    </div>`;
+    return;
+  }
+
+  if (sortMode === 'type') {
+    const typeOrder = ['task','memo','idea'];
+    const groups = {};
+    typeOrder.forEach(t => { groups[t] = filtered.filter(i=>i.type===t); });
+    const typeLabel = { task:'タスク', memo:'メモ', idea:'アイデア' };
+    list.innerHTML = typeOrder.filter(t=>groups[t].length).map(t =>
+      `<div class="day-group"><div class="day-label">${typeLabel[t]}</div>${groups[t].map(it=>cardHTML(it)).join('')}</div>`
+    ).join('');
+  } else {
+    const groups = {};
+    filtered.forEach(it => {
+      const lbl = dayLabel(it.ts);
+      (groups[lbl] = groups[lbl] || []).push(it);
+    });
+    list.innerHTML = Object.entries(groups).map(([lbl, its]) =>
+      `<div class="day-group"><div class="day-label">${lbl}</div>${its.map(it=>cardHTML(it)).join('')}</div>`
+    ).join('');
+  }
+}
+
+function cardHTML(it) {
+  const doneSubs = it.subs.filter(s=>s.d).length;
+  const pct = it.subs.length ? Math.round(doneSubs/it.subs.length*100) : 0;
+  return `<div class="card ${it.type}${it.done?' done-card':''}" onclick="openEdit(${it.id})">
+    <div class="card-head">
+      ${it.type==='task'
+        ? `<div class="card-check${it.done?' checked':''}" onclick="event.stopPropagation();toggleDone(${it.id})">
+             <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5"/></svg>
+           </div>`
+        : `<div style="width:20px;flex-shrink:0"></div>`
+      }
+      <div class="card-title${it.done?' done-text':''}">${escHtml(it.title)}</div>
+      <button class="card-del" onclick="event.stopPropagation();deleteItem(${it.id})">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="1.5" y1="1.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="1.5" x2="1.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+    ${it.body ? `<div class="card-body">${escHtml(it.body)}</div>` : ''}
+    ${it.subs.length ? `
+      <div class="sub-progress">${doneSubs}/${it.subs.length} 完了</div>
+      <div class="progress-bar"><div class="progress-bar-inner" style="width:${pct}%"></div></div>` : ''}
+    <div class="card-foot">
+      <span class="type-badge ${it.type}">${{memo:'MEMO',task:'TASK',idea:'IDEA'}[it.type]}</span>
+      ${it.tags.map(t=>`<span class="tag-badge">${t}</span>`).join('')}
+      <span class="time-badge">${relTime(it.ts)}</span>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleDone(id) {
+  items = items.map(i => i.id===id ? {...i, done:!i.done} : i);
+  save_storage(); render();
+}
+function deleteItem(id) {
+  if (!confirm('削除しますか？')) return;
+  items = items.filter(i => i.id !== id);
+  save_storage(); render(); checkDuplicates();
+  showToast('削除しました');
+}
+
+/* ── SHEET ── */
+function openNew() {
+  editId = null;
+  document.getElementById('sheet-title').textContent = '新規追加';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-body').value = '';
+  selTags = []; subList = [];
+  pickType('memo');
+  renderTagPicker();
+  renderSubs();
+  openSheet();
+}
+function openEdit(id) {
+  const it = items.find(i=>i.id===id); if (!it) return;
+  editId = id;
+  document.getElementById('sheet-title').textContent = '編集';
+  document.getElementById('f-title').value = it.title;
+  document.getElementById('f-body').value = it.body||'';
+  selTags = [...it.tags]; subList = it.subs.map(s=>({...s}));
+  pickType(it.type);
+  renderTagPicker();
+  renderSubs();
+  openSheet();
+}
+function openSheet() {
+  document.getElementById('sheet-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(), 300);
+}
+function closeSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('sheet-overlay')) closeSheet();
+}
+
+function pickType(t) {
+  curNewType = t;
+  ['memo','task','idea'].forEach(tp => {
+    const el = document.getElementById('tp-'+tp);
+    el.className = 'tp' + (tp===t ? ' sel-'+tp : '');
+  });
+  document.getElementById('sub-area').style.display = t==='task' ? 'block' : 'none';
+}
+
+function renderTagPicker() {
+  document.getElementById('tag-picker').innerHTML = TAGS.map(t =>
+    `<button class="tp-tag${selTags.includes(t)?' sel':''}" onclick="toggleTag('${t}')">${t}</button>`
+  ).join('');
+}
+function toggleTag(t) {
+  if (selTags.includes(t)) selTags = selTags.filter(x=>x!==t);
+  else selTags.push(t);
+  renderTagPicker();
+}
+
+function addSub() { subList.push({t:'',d:false}); renderSubs(); }
+function renderSubs() {
+  document.getElementById('subtasks').innerHTML = subList.map((s,i)=>`
+    <div class="sub-row">
+      <div class="mini-chk${s.d?' done':''}" onclick="subToggle(${i})">
+        <svg viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.3"/></svg>
+      </div>
+      <input class="sub-input" value="${escHtml(s.t)}" oninput="subList[${i}].t=this.value" placeholder="チェック項目...">
+      <button class="sub-del" onclick="subList.splice(${i},1);renderSubs()">✕</button>
+    </div>`).join('');
+}
+function subToggle(i) { subList[i].d=!subList[i].d; renderSubs(); }
+
+function save() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { showToast('タイトルを入力してください'); return; }
+
+  // duplicate check on save
+  const dupes = checkNewDuplicate(title, editId);
+  if (dupes.length && !editId) {
+    if (!confirm(`「${dupes[0].title}」と似たアイテムが存在します。\n重複の可能性があります。このまま保存しますか？`)) return;
+  }
+
+  const now = Date.now();
+  const obj = {
+    id: editId || nextId++,
+    type: curNewType,
+    title,
+    body: document.getElementById('f-body').value,
+    tags: selTags,
+    subs: subList.filter(s=>s.t.trim()),
+    done: editId ? items.find(i=>i.id===editId).done : false,
+    ts: editId ? items.find(i=>i.id===editId).ts : now,
+    updated: now,
+  };
+  items = editId ? items.map(i=>i.id===editId?obj:i) : [obj,...items];
+  save_storage();
+  closeSheet();
+  render();
+  checkDuplicates();
+  showToast(editId ? '更新しました' : '追加しました');
+}
+
+/* ── INIT ── */
+load();
+render();
+checkDuplicates();
+
+// Service Worker registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
