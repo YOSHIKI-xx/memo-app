@@ -545,9 +545,14 @@ cursor: pointer; font-family: inherit; padding: 0; margin-bottom: 8px;
 
   <div id="ai-results"></div>
 
-  <div id="ai-import-btns" style="display:none;gap:8px;margin-top:8px">
-    <button onclick="closeAiSheet()" style="flex:1;padding:12px;border-radius:8px;border:0.5px solid var(--border2);background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);font-family:inherit">キャンセル</button>
-    <button id="ai-import-btn" onclick="importSelected()" style="flex:2;padding:12px;border-radius:8px;background:#4ade80;border:none;cursor:pointer;font-size:13px;font-weight:700;color:#000;font-family:inherit">選択した件を追加する</button>
+  <div id="ai-import-btns" style="display:none;gap:8px;margin-top:8px;flex-direction:column">
+    <div style="display:flex;gap:8px">
+      <button onclick="closeAiSheet()" style="flex:1;padding:12px;border-radius:8px;border:0.5px solid var(--border2);background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);font-family:inherit">キャンセル</button>
+      <button id="ai-import-btn" onclick="importSelected()" style="flex:2;padding:12px;border-radius:8px;background:#4ade80;border:none;cursor:pointer;font-size:13px;font-weight:700;color:#000;font-family:inherit">メモ帳に追加</button>
+    </div>
+    <div id="wishlist-btn-wrap" style="display:none">
+      <button onclick="sendToWishlist()" style="width:100%;padding:12px;border-radius:8px;background:#fbbf24;border:none;cursor:pointer;font-size:13px;font-weight:700;color:#000;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">Wishリストに追加する</button>
+    </div>
   </div>
 </div>
 
@@ -1021,6 +1026,7 @@ function toggleAiSel(i) {
   const el = document.getElementById('aicheck-'+i);
   if (el) el.className = 'ai-result-check' + (aiSelections.has(i)?' on':'');
   updateImportBtn();
+  updateWishlistBtn();
 }
 function toggleSelectAll() {
   if (aiSelections.size === aiResults.length) {
@@ -1029,6 +1035,7 @@ function toggleSelectAll() {
     aiResults.forEach((_,i)=>aiSelections.add(i));
   }
   renderAiResults();
+  updateWishlistBtn();
 }
 function updateImportBtn() {
   const btn = document.getElementById('ai-import-btn');
@@ -1042,7 +1049,7 @@ function importSelected() {
   aiResults.forEach((r, i) => {
     if (!aiSelections.has(i)) return;
     const dupes = checkNewDuplicate(r.title, null);
-    if (dupes.length) return; // skip duplicates silently
+    if (dupes.length) return;
     items.unshift({
       id: nextId++, type: r.type, title: r.title,
       body: r.body || '', tags: r.tags || [], subs: [], done: false,
@@ -1053,6 +1060,20 @@ function importSelected() {
   save_storage(); render(); checkDuplicates();
   closeAiSheet();
   showToast(`${added}件を追加しました${added < aiSelections.size ? `（${aiSelections.size-added}件は重複のためスキップ）`:''}`);
+}
+
+function sendToWishlist() {
+  const wishItems = aiResults.filter((_,i) => aiSelections.has(i) && (aiResults[i].tags||[]).includes('欲しいもの'));
+  if (!wishItems.length) { showToast('欲しいものタグのアイテムがありません'); return; }
+  const text = wishItems.map(r => r.title + (r.body ? ' - ' + r.body : '')).join('\n');
+  const url = 'https://sage-cranachan-f86109.netlify.app?import=' + encodeURIComponent(text);
+  window.open(url, '_blank');
+}
+
+function updateWishlistBtn() {
+  const hasWish = [...aiSelections].some(i => (aiResults[i] && (aiResults[i].tags||[]).includes('欲しいもの')));
+  const wrap = document.getElementById('wishlist-btn-wrap');
+  if (wrap) wrap.style.display = hasWish ? 'block' : 'none';
 }
 
 /* ── INIT ── */
