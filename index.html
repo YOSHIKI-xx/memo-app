@@ -142,6 +142,48 @@ body {
 .card:hover { border-color: var(--border2); background: var(--bg3); }
 .card.done-card { opacity: .5; }
 
+.card-wrap {
+  position: relative; overflow: hidden; margin-bottom: 8px; border-radius: var(--radius);
+}
+.card-wrap .card { margin-bottom: 0; border-radius: var(--radius); }
+.swipe-bg {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+  background: #7c6aff; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius); flex-direction: column; gap: 4px;
+}
+.swipe-bg svg { width: 18px; height: 18px; }
+.swipe-bg span { font-size: 10px; color: #fff; font-weight: 700; }
+.card-wrap .card {
+  transition: transform .25s cubic-bezier(.32,0,.67,0);
+  will-change: transform;
+}
+.archive-tab { padding: 5px 14px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text2); transition: all .15s; white-space: nowrap; }
+.archive-tab.active { background: #7c6aff; color: #fff; border-color: #7c6aff; }
+.archived-badge { font-size: 10px; padding: 1px 7px; border-radius: 6px; background: rgba(124,106,255,0.15); color: #7c6aff; font-family: 'DM Mono', monospace; }
+
+.group-card { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+.group-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
+.group-chevron { width: 18px; height: 18px; flex-shrink: 0; transition: transform .2s; color: var(--text3); }
+.group-chevron.open { transform: rotate(90deg); }
+.group-title { font-size: 14px; font-weight: 500; color: var(--text); flex: 1; }
+.group-count { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.group-type-bar { width: 3px; height: 100%; border-radius: 2px; flex-shrink: 0; align-self: stretch; margin: -12px 0; }
+.group-children { border-top: 0.5px solid var(--border); }
+.group-child { padding: 8px 14px 8px 28px; border-bottom: 0.5px solid var(--border); cursor: pointer; display: flex; align-items: flex-start; gap: 8px; }
+.group-child:last-child { border-bottom: none; }
+.child-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.child-dot.memo { background: var(--memo); }
+.child-dot.task { background: var(--task); }
+.child-dot.idea { background: var(--idea); }
+.child-title { font-size: 13px; color: var(--text); flex: 1; line-height: 1.4; }
+.child-done { text-decoration: line-through; color: var(--text3); }
+.child-check { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; border: 1.5px solid var(--task); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .12s; margin-top: 2px; }
+.child-check.checked { background: var(--task); border-color: var(--task); }
+.child-check svg { width: 8px; height: 8px; opacity: 0; }
+.child-check.checked svg { opacity: 1; }
+.group-add-child { padding: 8px 14px 8px 28px; font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; display: block; }
+.group-badge { font-size: 10px; padding: 1px 7px; border-radius: 6px; background: rgba(124,106,255,0.15); color: #7c6aff; font-family: 'DM Mono',monospace; }
+
 .card-head { display: flex; align-items: flex-start; gap: 10px; }
 .card-check {
   width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
@@ -448,6 +490,7 @@ textarea.finp { resize: none; min-height: 80px; line-height: 1.55; }
       <button class="tab" onclick="setType('memo',this)">メモ</button>
       <button class="tab" onclick="setType('task',this)">タスク</button>
       <button class="tab" onclick="setType('idea',this)">アイデア</button>
+    <button class="archive-tab" id="archive-tab" onclick="toggleArchiveView()">アーカイブ</button>
     </div>
   </div>
 
@@ -461,7 +504,10 @@ textarea.finp { resize: none; min-height: 80px; line-height: 1.55; }
   <div class="list-area" id="list"></div>
 
   <div style="position:relative;height:0">
-    <div class="fab-wrap">
+    <div class="fab-wrap" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <button onclick="createGroup()" style="width:36px;height:36px;border-radius:50%;background:var(--bg4);border:0.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2)" title="グループ作成">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="4" width="14" height="9" rx="2"/><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/></svg>
+      </button>
       <button class="fab" onclick="openNew()">
         <svg viewBox="0 0 22 22" fill="none"><line x1="11" y1="4" x2="11" y2="18" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><line x1="4" y1="11" x2="18" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
@@ -708,8 +754,9 @@ function render() {
   const allTags = [...new Set(items.flatMap(i=>i.tags))];
 
   // stats
-  const sc = { all: items.length, memo: 0, task: 0, idea: 0 };
-  items.forEach(i => sc[i.type]++);
+  const active = items.filter(i=>!i.archived && !i.parentId);
+  const sc = { all: active.length, memo: 0, task: 0, idea: 0 };
+  active.filter(i=>!i.isGroup).forEach(i => sc[i.type]++);
   document.getElementById('stats').innerHTML = `
     <div class="stat"><div class="stat-n n-all">${sc.all}</div><div class="stat-l">合計</div></div>
     <div class="stat"><div class="stat-n n-memo">${sc.memo}</div><div class="stat-l">メモ</div></div>
@@ -722,8 +769,11 @@ function render() {
     + allTags.map(t=>`<span class="chip${curTag===t?' active':''}" onclick="setTag('${t}')">${t}</span>`).join('');
 
   let filtered = items.filter(it => {
-    if (curType !== 'all' && it.type !== curType) return false;
-    if (curTag !== 'all' && !it.tags.includes(curTag)) return false;
+    if (showArchive) return it.archived;
+    if (it.archived) return false;
+    if (it.parentId) return false; // children shown inside groups
+    if (curType !== 'all' && !it.isGroup && it.type !== curType) return false;
+    if (curTag !== 'all' && !it.isGroup && !it.tags.includes(curTag)) return false;
     if (q && !it.title.toLowerCase().includes(q) && !(it.body||'').toLowerCase().includes(q)) return false;
     return true;
   }).sort((a,b) => b.ts - a.ts);
@@ -737,53 +787,112 @@ function render() {
     return;
   }
 
+  const renderItem = it => it.isGroup ? groupCardHTML(it) : cardHTML(it);
+
   if (sortMode === 'type') {
-    const typeOrder = ['task','memo','idea'];
+    const typeOrder = ['task','memo','idea','group'];
     const groups = {};
-    typeOrder.forEach(t => { groups[t] = filtered.filter(i=>i.type===t); });
-    const typeLabel = { task:'タスク', memo:'メモ', idea:'アイデア' };
+    typeOrder.forEach(t => { groups[t] = filtered.filter(i=>i.type===t||(t==='group'&&i.isGroup)); });
+    const typeLabel = { task:'タスク', memo:'メモ', idea:'アイデア', group:'グループ' };
     list.innerHTML = typeOrder.filter(t=>groups[t].length).map(t =>
-      `<div class="day-group"><div class="day-label">${typeLabel[t]}</div>${groups[t].map(it=>cardHTML(it)).join('')}</div>`
+      `<div class="day-group"><div class="day-label">${typeLabel[t]}</div>${groups[t].map(it=>renderItem(it)).join('')}</div>`
     ).join('');
   } else {
-    const groups = {};
+    const grps = {};
     filtered.forEach(it => {
       const lbl = dayLabel(it.ts);
-      (groups[lbl] = groups[lbl] || []).push(it);
+      (grps[lbl] = grps[lbl] || []).push(it);
     });
-    list.innerHTML = Object.entries(groups).map(([lbl, its]) =>
-      `<div class="day-group"><div class="day-label">${lbl}</div>${its.map(it=>cardHTML(it)).join('')}</div>`
+    list.innerHTML = Object.entries(grps).map(([lbl, its]) =>
+      `<div class="day-group"><div class="day-label">${showArchive?'アーカイブ済み':lbl}</div>${its.map(it=>renderItem(it)).join('')}</div>`
     ).join('');
   }
+  filtered.filter(it=>!it.isGroup).forEach(it => initSwipe(it.id));
 }
 
 function cardHTML(it) {
   const doneSubs = it.subs.filter(s=>s.d).length;
   const pct = it.subs.length ? Math.round(doneSubs/it.subs.length*100) : 0;
-  return `<div class="card ${it.type}${it.done?' done-card':''}" onclick="openEdit(${it.id})">
-    <div class="card-head">
-      ${it.type==='task'
-        ? `<div class="card-check${it.done?' checked':''}" onclick="event.stopPropagation();toggleDone(${it.id})">
-             <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5"/></svg>
-           </div>`
-        : `<div style="width:20px;flex-shrink:0"></div>`
-      }
-      <div class="card-title${it.done?' done-text':''}">${escHtml(it.title)}</div>
-      <button class="card-del" onclick="event.stopPropagation();deleteItem(${it.id})">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="1.5" y1="1.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="1.5" x2="1.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/></svg>
-      </button>
+  const isArchived = it.archived;
+  return `<div class="card-wrap" id="wrap-${it.id}">
+    <div class="swipe-bg">
+      <svg viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.5"><rect x="2" y="4" width="14" height="11" rx="2"/><path d="M6 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><line x1="9" y1="8" x2="9" y2="12"/></svg>
+      <span>${isArchived ? '戻す' : '完了'}</span>
     </div>
-    ${it.body ? `<div class="card-body">${escHtml(it.body)}</div>` : ''}
-    ${it.subs.length ? `
-      <div class="sub-progress">${doneSubs}/${it.subs.length} 完了</div>
-      <div class="progress-bar"><div class="progress-bar-inner" style="width:${pct}%"></div></div>` : ''}
-    <div class="card-foot">
-      <span class="type-badge ${it.type}">${{memo:'MEMO',task:'TASK',idea:'IDEA'}[it.type]}</span>
-      ${it.tags.map(t=>`<span class="tag-badge">${t}</span>`).join('')}
-      <span class="time-badge">${relTime(it.ts)}</span>
+    <div class="card ${it.type}${it.done?' done-card':''}" id="card-${it.id}" onclick="openEdit(${it.id})">
+      <div class="card-head">
+        ${it.type==='task'
+          ? `<div class="card-check${it.done?' checked':''}" onclick="event.stopPropagation();toggleDone(${it.id})">
+               <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5"/></svg>
+             </div>`
+          : `<div style="width:20px;flex-shrink:0"></div>`
+        }
+        <div class="card-title${it.done?' done-text':''}">${escHtml(it.title)}</div>
+        <button class="card-del" onclick="event.stopPropagation();deleteItem(${it.id})">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="1.5" y1="1.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="1.5" x2="1.5" y2="10.5" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+      ${it.body ? `<div class="card-body">${escHtml(it.body)}</div>` : ''}
+      ${it.subs.length ? `
+        <div class="sub-progress">${doneSubs}/${it.subs.length} 完了</div>
+        <div class="progress-bar"><div class="progress-bar-inner" style="width:${pct}%"></div></div>` : ''}
+      <div class="card-foot">
+        <span class="type-badge ${it.type}">${{memo:'MEMO',task:'TASK',idea:'IDEA'}[it.type]}</span>
+        ${isArchived ? '<span class="archived-badge">ARCHIVED</span>' : ''}
+        ${it.tags.map(t=>`<span class="tag-badge">${t}</span>`).join('')}
+        <span class="time-badge">${relTime(it.ts)}</span>
+      </div>
     </div>
   </div>`;
 }
+
+function groupCardHTML(grp) {
+  const children = items.filter(i=>i.parentId===grp.id && !i.archived);
+  const isOpen = openGroups.has(grp.id);
+  const typeColors = { memo:'var(--memo)', task:'var(--task)', idea:'var(--idea)' };
+  return `<div class="group-card" id="grp-${grp.id}">
+    <div class="group-header" onclick="toggleGroup(${grp.id})">
+      <svg class="group-chevron${isOpen?' open':''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+      <div class="group-title">${escHtml(grp.title)}</div>
+      <span class="group-count">${children.length}件</span>
+      <button onclick="event.stopPropagation();openAddChild(${grp.id})" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:18px;padding:0 2px">＋</button>
+      <button onclick="event.stopPropagation();deleteItem(${grp.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0 2px">✕</button>
+    </div>
+    ${isOpen ? `<div class="group-children">
+      ${children.length ? children.map(c=>`
+        <div class="group-child" onclick="openEdit(${c.id})">
+          ${c.type==='task'
+            ? `<div class="child-check${c.done?' checked':''}" onclick="event.stopPropagation();toggleDone(${c.id})"><svg viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.3"/></svg></div>`
+            : `<div class="child-dot ${c.type}"></div>`}
+          <div class="child-title${c.done?' child-done':''}">${escHtml(c.title)}</div>
+          <button onclick="event.stopPropagation();deleteItem(${c.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px">✕</button>
+        </div>`).join('')
+        : `<div style="padding:10px 28px;font-size:12px;color:var(--text3)">アイテムを追加してください</div>`}
+    </div>` : ''}
+  </div>`;
+}
+
+const openGroups = new Set();
+function toggleGroup(id) {
+  if (openGroups.has(id)) openGroups.delete(id);
+  else openGroups.add(id);
+  render();
+}
+
+function openAddChild(parentId) {
+  editId = null;
+  document.getElementById('sheet-title').textContent = 'アイテムを追加';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-body').value = '';
+  selTags = []; subList = [];
+  pickType('memo');
+  renderTagPicker();
+  renderSubs();
+  currentParentId = parentId;
+  openGroups.add(parentId);
+  openSheet();
+}
+let currentParentId = null;
 
 function escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -800,9 +909,58 @@ function deleteItem(id) {
   showToast('削除しました');
 }
 
+function archiveItem(id) {
+  items = items.map(i => i.id===id ? {...i, archived:!i.archived} : i);
+  save_storage(); render();
+  const it = items.find(i=>i.id===id);
+  showToast(it && it.archived ? 'アーカイブしました' : 'リストに戻しました');
+}
+
+let showArchive = false;
+function toggleArchiveView() {
+  showArchive = !showArchive;
+  const btn = document.getElementById('archive-tab');
+  btn.classList.toggle('active', showArchive);
+  render();
+}
+
+function initSwipe(id) {
+  const wrap = document.getElementById('wrap-'+id);
+  const card = document.getElementById('card-'+id);
+  if (!wrap || !card) return;
+  let startX=0, curX=0, dragging=false;
+  const threshold = 70;
+  const onStart = e => {
+    startX = (e.touches ? e.touches[0].clientX : e.clientX);
+    curX = 0; dragging = true;
+    card.style.transition = 'none';
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+    if (x < 0) { curX = Math.max(x, -100); card.style.transform = `translateX(${curX}px)`; }
+  };
+  const onEnd = () => {
+    if (!dragging) return; dragging = false;
+    card.style.transition = 'transform .25s cubic-bezier(.32,0,.67,0)';
+    if (curX < -threshold) {
+      card.style.transform = 'translateX(-100%)';
+      setTimeout(() => archiveItem(id), 250);
+    } else { card.style.transform = 'translateX(0)'; }
+    curX = 0;
+  };
+  wrap.addEventListener('touchstart', onStart, {passive:true});
+  wrap.addEventListener('touchmove', onMove, {passive:true});
+  wrap.addEventListener('touchend', onEnd);
+  wrap.addEventListener('mousedown', onStart);
+  wrap.addEventListener('mousemove', onMove);
+  wrap.addEventListener('mouseup', onEnd);
+}
+
 /* ── SHEET ── */
 function openNew() {
   editId = null;
+  currentParentId = null;
   document.getElementById('sheet-title').textContent = '新規追加';
   document.getElementById('f-title').value = '';
   document.getElementById('f-body').value = '';
@@ -811,6 +969,15 @@ function openNew() {
   renderTagPicker();
   renderSubs();
   openSheet();
+}
+
+function createGroup() {
+  const title = prompt('グループ名を入力してください');
+  if (!title || !title.trim()) return;
+  const now = Date.now();
+  items.unshift({ id: nextId++, isGroup: true, type: 'group', title: title.trim(), body: '', tags: [], subs: [], done: false, ts: now, updated: now, parentId: null });
+  save_storage(); render();
+  showToast('グループを作成しました');
 }
 function openEdit(id) {
   const it = items.find(i=>i.id===id); if (!it) return;
@@ -879,6 +1046,7 @@ function save() {
   }
 
   const now = Date.now();
+  const pId = editId ? (items.find(i=>i.id===editId)||{}).parentId : currentParentId;
   const obj = {
     id: editId || nextId++,
     type: curNewType,
@@ -889,7 +1057,9 @@ function save() {
     done: editId ? items.find(i=>i.id===editId).done : false,
     ts: editId ? items.find(i=>i.id===editId).ts : now,
     updated: now,
+    parentId: pId || null,
   };
+  currentParentId = null;
   items = editId ? items.map(i=>i.id===editId?obj:i) : [obj,...items];
   save_storage();
   closeSheet();
